@@ -12,10 +12,11 @@ from torchvision import transforms as T
 
 class ImageTransform():
     
-    def __init__(self, resize):
+    def __init__(self, resize=224):
         self.transforms = T.Compose([
             T.Resize(resize),
-            T.ToTensor()
+            T.ToTensor(),
+            T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]) # for using pre-trained ResNet
         ])
 
     def __call__(self, img):
@@ -34,18 +35,12 @@ def visualize_img(path, resize):
     plt.imshow(img_transformed)
     plt.savefig("./result/tmp_transformed.jpg")
 
-def make_datapath_list(phase='train'):
+def make_datapath_list(root = "/home/Share/cow/data/3d_dataset"):
     """
     return list : [{label:[paths]},{label:[paths]},...]
     """
 
     datapath_list = []
-
-    if phase == 'test':
-        root = "/home/Share/cow/data/hogehoge" # need to modify
-
-    else:
-        root = "/home/Share/cow/data/3d_dataset"
 
     dir_list = osp.join(root, "*")
     dir_list = sorted(glob.glob(dir_list))
@@ -63,17 +58,14 @@ def make_datapath_list(phase='train'):
 
 class TripletDataset(data.Dataset):
 
-    def __init__(self, transform=None, phase='train'):
+    def __init__(self, transform=None, flist=None):
         self.transform = transform
-        self.phase = phase
-        self.flist = make_datapath_list(self.phase)
+        self.flist = flist
 
     def __len__(self):
         c = 0
-        
         for cow_dict in self.flist:
-            c += len(cow_dict.values) # number of paths per indivisual
-        
+            c += len(list(*cow_dict.values())) # number of paths per indivisual
         return c
 
     def __getitem__(self, idx):
@@ -114,10 +106,5 @@ class TripletDataset(data.Dataset):
 
         return img_transformed, labels
 
-        
-
-if __name__ == "__main__":
-    # flist = make_datapath_list()
-    dataset = TripletDataset(ImageTransform(resize = 100))
-    # dataloader = torch.utils.data.DataLoader(dataset, batch_size=2, shuffle=False)
-    print(dataset.__getitem__(1))
+# if __name__ == "__main__":
+#     visualize_img("/home/Share/cow/data/3d_dataset/18725/z000x000.jpg", resize=200)
