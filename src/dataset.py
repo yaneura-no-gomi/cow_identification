@@ -63,10 +63,11 @@ class TripletDataset(data.Dataset):
         self.flist = flist
 
     def __len__(self):
-        c = 0
-        for cow_dict in self.flist:
-            c += len(list(*cow_dict.values())) # number of paths per indivisual
-        return c
+        # c = 0
+        # for cow_dict in self.flist:
+        #     c += len(list(*cow_dict.values())) # number of paths per indivisual
+        # return c
+        return len(self.flist)
 
     def __getitem__(self, idx):
         """

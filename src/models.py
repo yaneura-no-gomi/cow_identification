@@ -24,3 +24,7 @@ class TripletNet(nn.Module):
         dist_anc2neg = F.pairwise_distance(embedded_anc, embedded_neg)
 
         return dist_anc2pos, dist_anc2neg, [embedded_anc, embedded_pos, embedded_neg]
+
+if __name__ == "__main__":
+    model = TripletNet()
+    print(model)
