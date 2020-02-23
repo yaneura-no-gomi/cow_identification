@@ -18,6 +18,11 @@ from models import TripletNet
 np.random.seed(seed=5)
 
 def main(args):
+    assert args.save_interval % 10 == 0, "save_interval must be a multiple of 10"
+
+    # prepare dirs
+    os.makedirs(args.log_dir, exist_ok=True)
+    os.makedirs(args.save_model, exist_ok=True)
     
     device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
     print("Device is", device)
@@ -54,8 +59,7 @@ def main(args):
     # set optimizer
     optimizer = optim.SGD(params_to_update, lr=1e-4, momentum=0.9)
 
-    # run epoch
-    os.mkdir(args.log_dir, exist_ok=True)
+    # run epoch    
     log_writer = SummaryWriter(log_dir=args.log_dir)
     for epoch in range(args.num_epochs):
         print("-"*80)
@@ -88,7 +92,12 @@ def main(args):
             print('[Validation Loss: {:.4f}], [Validation Acc: {:.4f}]'.format(np.mean(epoch_loss), np.mean(epoch_acc)))
             log_writer.add_scalar("val/loss", np.mean(epoch_loss), epoch+1)
             log_writer.add_scalar("val/acc", np.mean(epoch_acc), epoch+1)
-    
+
+            # save model
+            if (args.save_interval > 0) and ((epoch+1) % args.save_interval == 0):
+                save_path = os.path.join(args.save_model, '{}_epoch_{:.1f}.pth'.format(epoch+1, np.mean(epoch_loss)))
+                torch.save(model.state_dict(), save_path)
+
     log_writer.close()
 
 
@@ -111,7 +120,7 @@ def train_val_split(path_lists, val_ratio=0.1):
 def choose_update_params(update_params_name, model):
     """
         When using pretrained models,
-        freeze parameters no need to training
+        freeze parameters no need to train
     """
     params_to_update = []
 
@@ -174,6 +183,8 @@ if __name__ == "__main__":
     parser.add_argument('--save_model', type=str, default="./weights", help='the directory path for saving trained weight')
     parser.add_argument('--val_ratio', type=float, default=0.1, help='validation data ratio')
     parser.add_argument('--log_dir', type=str, default='./logs', help='dir path to output logs')
+    parser.add_argument('--save_interval', type=int, default=-1, 
+        help="epoch interval to save model. Must be a multiple of 10. Do not save if negative value is entered")
 
     args = parser.parse_args()
 
