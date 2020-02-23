@@ -1,4 +1,5 @@
 import argparse
+import os
 import random
 
 import numpy as np
@@ -8,6 +9,7 @@ import torch.optim as optim
 import torchvision
 from termcolor import cprint
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from dataset import ImageTransform, TripletDataset, make_datapath_list
@@ -42,9 +44,9 @@ def main(args):
         elif 'fc' in name:
             update_params_name.append(name)
 
-    print("**-----update params-----**")
+    print("**-----** update params **-----**")
     print(update_params_name)
-    print("**-----------------------**")
+    print("**-----------------------------**")
     print()
 
     params_to_update = choose_update_params(update_params_name, model)
@@ -53,6 +55,8 @@ def main(args):
     optimizer = optim.SGD(params_to_update, lr=1e-4, momentum=0.9)
 
     # run epoch
+    os.mkdir(args.log_dir, exist_ok=True)
+    log_writer = SummaryWriter(log_dir=args.log_dir)
     for epoch in range(args.num_epochs):
         print("-"*80)
         print('Epoch {}/{}'.format(epoch+1, args.num_epochs))
@@ -66,6 +70,9 @@ def main(args):
         epoch_loss = np.array(epoch_loss)
         epoch_acc = np.array(epoch_acc)
         print('[Loss: {:.4f}], [Acc: {:.4f}] \n'.format(np.mean(epoch_loss), np.mean(epoch_acc)))
+        log_writer.add_scalar("train/loss", np.mean(epoch_loss), epoch+1)
+        log_writer.add_scalar("train/acc", np.mean(epoch_acc), epoch+1)
+
 
         # validation
         if (epoch+1) % 10 == 0:
@@ -79,7 +86,10 @@ def main(args):
             epoch_loss = np.array(epoch_loss)
             epoch_acc = np.array(epoch_acc)
             print('[Validation Loss: {:.4f}], [Validation Acc: {:.4f}]'.format(np.mean(epoch_loss), np.mean(epoch_acc)))
-
+            log_writer.add_scalar("val/loss", np.mean(epoch_loss), epoch+1)
+            log_writer.add_scalar("val/acc", np.mean(epoch_acc), epoch+1)
+    
+    log_writer.close()
 
 
 
@@ -163,6 +173,7 @@ if __name__ == "__main__":
     parser.add_argument('--margin', type=float, default=0.5, help='margin for triplet loss (default: 0.5)')
     parser.add_argument('--save_model', type=str, default="./weights", help='the directory path for saving trained weight')
     parser.add_argument('--val_ratio', type=float, default=0.1, help='validation data ratio')
+    parser.add_argument('--log_dir', type=str, default='./logs', help='dir path to output logs')
 
     args = parser.parse_args()
 
