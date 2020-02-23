@@ -1,30 +1,37 @@
 import argparse
+import random
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
+from termcolor import cprint
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from dataset import ImageTransform, TripletDataset, make_datapath_list
 from models import TripletNet
 
+np.random.seed(seed=5)
 
 def main(args):
     
     device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
     print("Device is", device)
 
-    train_path_list = make_datapath_list(root="/home/Share/cow/data/3d_dataset")
+    path_lists = make_datapath_list(root="/home/Share/cow/data/3d_dataset")
+    train_path_list, val_path_list = train_val_split(path_lists, val_ratio=args.val_ratio)
+
     train_dataset = TripletDataset(transform=ImageTransform(), flist=train_path_list)
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
 
+    val_dataset = TripletDataset(transform=ImageTransform(), flist=val_path_list)
+    val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+
     model = TripletNet()
     model.to(device)
-    model.train() # train mode
-
+    
     criterion = nn.MarginRankingLoss(margin=args.margin)
 
     # choose params to train
@@ -45,21 +52,51 @@ def main(args):
     # set optimizer
     optimizer = optim.SGD(params_to_update, lr=1e-4, momentum=0.9)
 
+    # run epoch
     for epoch in range(args.num_epochs):
-        print("--------------------------------------------------------------")
+        print("-"*80)
         print('Epoch {}/{}'.format(epoch+1, args.num_epochs))
 
         epoch_loss, epoch_acc = [], []
-        print(len(train_dataloader))
         for inputs, labels in tqdm(train_dataloader):
-            batch_loss, batch_acc = train_one_batch(inputs, labels, model, criterion, optimizer, args.margin, device)
+            batch_loss, batch_acc = train_one_batch(inputs, labels, model, criterion, optimizer, device)
             epoch_loss.append(batch_loss.item())
             epoch_acc.append(batch_acc.item())
         
         epoch_loss = np.array(epoch_loss)
         epoch_acc = np.array(epoch_acc)
-        print('[Loss: {:.4f}], [Acc: {:.4f}]'.format(np.mean(epoch_loss), np.mean(epoch_acc)))
+        print('[Loss: {:.4f}], [Acc: {:.4f}] \n'.format(np.mean(epoch_loss), np.mean(epoch_acc)))
 
+        # validation
+        if (epoch+1) % 10 == 0:
+            print("Run Validation")
+            epoch_loss, epoch_acc = [], []
+            for inputs, labels in tqdm(val_dataloader):
+                batch_loss, batch_acc = validation(inputs, labels, model, criterion, device)
+                epoch_loss.append(batch_loss.item())
+                epoch_acc.append(batch_acc.item())
+            
+            epoch_loss = np.array(epoch_loss)
+            epoch_acc = np.array(epoch_acc)
+            print('[Validation Loss: {:.4f}], [Validation Acc: {:.4f}]'.format(np.mean(epoch_loss), np.mean(epoch_acc)))
+
+
+
+
+# ***************************************** #
+# *               functions               * #
+# ***************************************** #
+def train_val_split(path_lists, val_ratio=0.1):
+    train_path_list, val_path_list = [], []
+    
+    for p_list in path_lists:
+        for key, value in p_list.items():
+            random_plist = random.sample(value, len(value))
+            
+            val_path_list.append({key:random_plist[:int(len(value)*0.1)]})
+            train_path_list.append({key:random_plist[int(len(value)*0.1):]})
+    
+    return train_path_list, val_path_list
 
 def choose_update_params(update_params_name, model):
     """
@@ -77,11 +114,11 @@ def choose_update_params(update_params_name, model):
     
     return params_to_update
 
-def train_one_batch(inputs, labels, model, criterion, optimizer, margin, device):
+def train_one_batch(inputs, labels, model, criterion, optimizer, device):
     """
-        Train one epoch!
+        Train one batch!
     """
-    
+    model.train() # train mode
     inputs_gpu = [i.to(device) for i in inputs]
     dist_anc2pos, dist_anc2neg, embedded_vecs = model(inputs_gpu)
     
@@ -96,6 +133,18 @@ def train_one_batch(inputs, labels, model, criterion, optimizer, margin, device)
 
     return loss, acc
 
+def validation(inputs, labels, model, criterion, device):
+    
+    model.eval() # eval
+    with torch.no_grad():
+        inputs_gpu = [i.to(device) for i in inputs]
+        dist_anc2pos, dist_anc2neg, embedded_vecs = model(inputs_gpu)
+
+    target = torch.FloatTensor(dist_anc2pos.size()).fill_(1).to(device)
+    loss = criterion(dist_anc2pos, dist_anc2neg, target)
+    acc = dist_accuracy(dist_anc2pos, dist_anc2neg)
+
+    return loss, acc
 
 def dist_accuracy(dist_anc2pos, dist_anc2neg):
     """
@@ -113,6 +162,13 @@ if __name__ == "__main__":
     parser.add_argument('--num_epochs', type= int, default=200, help='the number of epochs')
     parser.add_argument('--margin', type=float, default=0.5, help='margin for triplet loss (default: 0.5)')
     parser.add_argument('--save_model', type=str, default="./weights", help='the directory path for saving trained weight')
+    parser.add_argument('--val_ratio', type=float, default=0.1, help='validation data ratio')
 
     args = parser.parse_args()
+
+    text_c = 'magenta'
+    cprint("-" * 50, text_c)
+    cprint(("TripletNet Train").center(50), text_c)
+    cprint("-" * 50, text_c)
+
     main(args)
