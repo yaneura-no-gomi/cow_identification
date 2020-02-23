@@ -1,4 +1,4 @@
 .python-version
 .DS_Store
 .vscode
-.pth
+*.pth
