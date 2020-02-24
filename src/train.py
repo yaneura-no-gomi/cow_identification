@@ -12,7 +12,8 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from dataset import ImageTransform, TripletDataset, make_datapath_list
+from dataset import TripletDataset
+from utils import ImageTransform, make_datapath_list
 from models import TripletNet
 
 np.random.seed(seed=5)
