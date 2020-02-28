@@ -106,17 +106,6 @@ def main(args):
 # ***************************************** #
 # *               functions               * #
 # ***************************************** #
-def train_val_split(path_lists, val_ratio=0.1):
-    train_path_list, val_path_list = [], []
-    
-    for p_list in path_lists:
-        for key, value in p_list.items():
-            random_plist = random.sample(value, len(value))
-            
-            val_path_list.append({key:random_plist[:int(len(value)*0.1)]})
-            train_path_list.append({key:random_plist[int(len(value)*0.1):]})
-    
-    return train_path_list, val_path_list
 
 def choose_update_params(update_params_name, model):
     """

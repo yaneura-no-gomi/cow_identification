@@ -31,23 +31,3 @@ def visualize_img(path, resize):
     plt.imshow(img_transformed)
     plt.savefig("./result/tmp_transformed.jpg")
 
-
-def make_datapath_list(root="/home/Share/cow/data/3d_dataset"):
-    """
-    return list : [{label:[paths]},{label:[paths]},...]
-    """
-
-    datapath_list = []
-
-    dir_list = osp.join(root, "*")
-    dir_list = sorted(glob.glob(dir_list))
-    labels = [osp.basename(p) for p in dir_list]
-
-    for label in labels:
-        datapath_dict = dict()
-        target = osp.join(root, label, "*")
-        target_paths = sorted(glob.glob(target))
-        datapath_dict[label] = target_paths
-        datapath_list.append(datapath_dict)
-
-    return datapath_list
