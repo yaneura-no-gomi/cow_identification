@@ -1,5 +1,6 @@
 import glob
 import os
+import pickle
 import random
 
 import pandas as pd
@@ -106,7 +107,7 @@ def get_num_of_data(data_list, save_path):
     """
     ids = []
     nums = []
-    
+
     for l in data_list:
         for k, v in l.items():
             ids.append(int(k))
@@ -120,5 +121,12 @@ def get_num_of_data(data_list, save_path):
     df.to_csv(save_path, index=False)
 
 if __name__ == "__main__":
+
+    data_3d = Dataset_3D()
     data_rgb = Dataset_RGB()
-    print(data_rgb.test_pl[0])
+
+    with open("data/3d_data.pkl", mode='wb') as f:
+        pickle.dump(data_3d, f)
+
+    with open("data/rgb_data.pkl", mode='wb') as f:
+        pickle.dump(data_rgb, f)
