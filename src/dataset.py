@@ -48,6 +48,7 @@ class TripletDataset(data.Dataset):
 
         img_transformed = []
         for img_p in [anchor, pos, neg]:
+            # print(img_p)
             img = Image.open(img_p)
             img = self.transform(img)
             img_transformed.append(img)

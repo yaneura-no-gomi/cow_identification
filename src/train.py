@@ -1,5 +1,6 @@
 import argparse
 import os
+import pickle
 import random
 
 import numpy as np
@@ -13,8 +14,9 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from dataset import TripletDataset
-from utils import ImageTransform, make_datapath_list
+from make_data import Dataset_3D, Dataset_RGB
 from models import TripletNet
+from utils import ImageTransform
 
 np.random.seed(seed=5)
 
@@ -28,8 +30,11 @@ def main(args):
     device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
     print("Device is", device)
 
-    path_lists = make_datapath_list(root="/home/Share/cow/data/3d_dataset")
-    train_path_list, val_path_list = train_val_split(path_lists, val_ratio=args.val_ratio)
+    # img path loading
+    with open("data/3d_data.pkl", mode='rb') as f:
+        data_3d = pickle.load(f)
+    train_path_list =  data_3d.train_pl
+    val_path_list = data_3d.val_pl
 
     train_dataset = TripletDataset(transform=ImageTransform(), flist=train_path_list)
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)

@@ -37,19 +37,18 @@ class Dataset_3D():
         return datapath_list
 
     def train_val_regi_split(self, path_lists, regi_ratio=0.1, val_ratio=0.1):
-        train_path_list, regi_path_list, val_path_list, train_val_path_list = [], [], [], []
+        train_path_list, regi_path_list, val_path_list = [], [], []
         
-        for p_list in tqdm(path_lists):
-            for key, value in p_list.items():
+        for p_dict in tqdm(path_lists):
+            for key, value in p_dict.items():
                 random_plist = random.sample(value, len(value))
-
                 # split train(including val) and register
                 regi_path_list.append({key:random_plist[:int(len(value)*regi_ratio)]})
-                train_val_path_list.append({key:random_plist[int(len(value)*regi_ratio):]})
+                train_val_list = random_plist[int(len(value)*regi_ratio):]
                 
                 # split train and val
-                val_path_list.append({key:train_val_path_list[:int(len(train_val_path_list)*val_ratio)]})
-                train_path_list.append({key:train_val_path_list[int(len(train_val_path_list)*val_ratio):]})
+                val_path_list.append({key:train_val_list[:int(len(train_val_list)*val_ratio)]})
+                train_path_list.append({key:train_val_list[int(len(train_val_list)*val_ratio):]})
         
         return train_path_list, val_path_list, regi_path_list
 
@@ -79,23 +78,23 @@ class Dataset_RGB():
             target_paths = sorted(glob.glob(target))
             datapath_dict[label] = target_paths
             datapath_list.append(datapath_dict)
-
+        
         return datapath_list
 
     def train_val_test_split(self, path_lists, val_ratio=0.1):
-        train_path_list, test_path_list, val_path_list, train_val_path_list = [], [], [], []
+        train_path_list, test_path_list, val_path_list = [], [], []
 
-        for p_list in tqdm(path_lists):
-            for key, value in p_list.items():
+        for p_dict in tqdm(path_lists):
+            for key, value in p_dict.items():
                 random_plist = random.sample(value, len(value))
 
                 # split train(including val) and test(==5)
                 test_path_list.append({key:random_plist[:5]})
-                train_val_path_list.append({key:random_plist[5:]})
+                train_val_list = random_plist[5:]
                 
                 # split train and val
-                val_path_list.append({key:train_val_path_list[:int(len(train_val_path_list)*val_ratio)]})
-                train_path_list.append({key:train_val_path_list[int(len(train_val_path_list)*val_ratio):]})
+                val_path_list.append({key:train_val_list[:int(len(train_val_list)*val_ratio)]})
+                train_path_list.append({key:train_val_list[int(len(train_val_list)*val_ratio):]})
         
         return train_path_list, val_path_list, test_path_list
 
