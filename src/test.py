@@ -38,22 +38,22 @@ def registering_imgs(regi_dataset, batch_size, model):
 
     for i, data in enumerate(tqdm(regi_dataloader)):
         inputs = data[0]
-        labels = data[1]
+        labels = list(data[1])
         embedded_imgs = model(inputs.to(device)) # size -> (batch, 1000)
 
         if i==0:
             embedded_regi = embedded_imgs
-        
+            labels_db = labels
         else:
             embedded_regi = torch.cat((embedded_regi, embedded_imgs), dim=0)
+            labels_db += labels
 
-        # print(embedded_regi)
-        # print(embedded_regi.size())
-    return embedded_regi
+    return embedded_regi, labels_db
 
 
 def main(args):
     model = EmbeddingImg()
+    model.load_state_dict(torch.load(args.weight))
     model.to(device)
     model.eval()
 
@@ -63,22 +63,28 @@ def main(args):
     regi_dataset = TestDataset(transform=ImageTransform(), flist=regi_pl)
     test_dataset = TestDataset(transform=ImageTransform(), flist=test_pl)
 
+    # loading database or building database
     if os.path.exists(args.register):
         print("loading existing database!")
-        with open(args.register, "rb") as f:
+        with open(os.path.join(args.register,"db.pkl"), "rb") as f:
             db = pickle.load(f)
-        
+        with open(os.path.join(args.register,"labels.pkl"), "rb") as f:
+            labels_db = pickle.load(f)
     else:
+        os.makedirs(args.register)
         print("building a new database!")
-        db = registering_imgs(regi_dataset, args.batch_size, model)
-        with open(args.register, "wb") as f:
+        db, labels_db = registering_imgs(regi_dataset, args.batch_size, model)
+        with open(os.path.join(args.register, "db.pkl"), "wb") as f:
             pickle.dump(db,f)
+        with open(os.path.join(args.register, "labels.pkl"), "wb") as f:
+            pickle.dump(labels_db,f)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Training for TripletNet')
     parser.add_argument('--batch_size', type= int, default=2, help='batch size for input')
-    parser.add_argument('--register', type=str, required=True, help='Building a database and save as pkl file')
-    # parser.add_argument('--load_model', type=str, required=True, help='the path for loading pretrained weight')
+    parser.add_argument('--register', type=str, required=True, help='dir path for building a database and save as pkl file')
+    parser.add_argument('--weight', type=str, required=True, help='the path for loading pretrained weight')
 
     args = parser.parse_args()
     main(args)
