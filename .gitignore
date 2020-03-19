@@ -2,4 +2,5 @@
 .DS_Store
 .vscode
 *.pth
-__pycache__
+*/__pycache__
+*.pkl
