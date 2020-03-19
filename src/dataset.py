@@ -11,10 +11,6 @@ class TripletDataset(data.Dataset):
         self.flist = flist
 
     def __len__(self):
-        # c = 0
-        # for cow_dict in self.flist:
-        #     c += len(list(*cow_dict.values())) # number of paths per indivisual
-        # return c
         return len(self.flist)
 
     def __getitem__(self, idx):
@@ -54,3 +50,20 @@ class TripletDataset(data.Dataset):
             img_transformed.append(img)
 
         return img_transformed, labels
+
+class TestDataset(data.Dataset):
+    def __init__(self, transform=None, flist=None):
+        self.transform = transform
+        self.flist = flist
+    
+    def __len__(self):
+        return len(self.flist)
+
+    def __getitem__(self, idx):
+        for key, path_list in self.flist[idx].items():
+            label = key
+            for p in path_list:
+                img = Image.open(p)
+                img_transformed = self.transform(img)
+            
+        return img_transformed, label

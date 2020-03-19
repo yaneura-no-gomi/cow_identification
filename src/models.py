@@ -25,6 +25,17 @@ class TripletNet(nn.Module):
 
         return dist_anc2pos, dist_anc2neg, [embedded_anc, embedded_pos, embedded_neg]
 
+class EmbeddingImg(nn.Module):
+    def __init__(self):
+        super(EmbeddingImg, self).__init__()
+        self.resnet50 = models.resnet50(pretrained=False)
+
+    def forward(self, img):
+        self.img = img
+        embedded_img = self.resnet50(self.img)
+    
+        return embedded_img
+
 if __name__ == "__main__":
     model = TripletNet()
     print(model)
