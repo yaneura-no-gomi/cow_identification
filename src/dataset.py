@@ -55,15 +55,17 @@ class TestDataset(data.Dataset):
     def __init__(self, transform=None, flist=None):
         self.transform = transform
         self.flist = flist
-    
+        
     def __len__(self):
         return len(self.flist)
 
     def __getitem__(self, idx):
+        img_transformed = []
         for key, path_list in self.flist[idx].items():
             label = key
             for p in path_list:
                 img = Image.open(p)
-                img_transformed = self.transform(img)
+                img_transformed.append(self.transform(img))
             
         return img_transformed, label
+

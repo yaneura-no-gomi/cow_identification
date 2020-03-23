@@ -32,23 +32,67 @@ def registering_imgs(regi_dataset, batch_size, model):
         return the matrix made as stacking embeded vecotors
     """
 
-    regi_dataloader = DataLoader(regi_dataset, batch_size=batch_size, shuffle=False)
+    regi_dataloader = DataLoader(regi_dataset, batch_size=1, shuffle=False)
 
     print("Registering Imgs to DB")
+    regi_dict = dict()
+    for inputs, labels in tqdm(regi_dataloader):
+        # labels_db = labels[0]
+        for i, img in enumerate(inputs):
+            embedded_imgs = model(img.to(device)) # size -> (1, 1000)
+            if i==0:
+                embedded_regi = embedded_imgs.detach()
+            else:
+                embedded_regi = torch.cat((embedded_regi, embedded_imgs.detach()), dim=0)
+        regi_dict[labels[0]] = embedded_regi
+    return regi_dict
 
-    for i, data in enumerate(tqdm(regi_dataloader)):
-        inputs = data[0]
-        labels = list(data[1])
-        embedded_imgs = model(inputs.to(device)) # size -> (batch, 1000)
 
-        if i==0:
-            embedded_regi = embedded_imgs
-            labels_db = labels
-        else:
-            embedded_regi = torch.cat((embedded_regi, embedded_imgs), dim=0)
-            labels_db += labels
+class CalcSimilarity():
+    def __init__(self, db, test_dataloader, model):
+        self.db = db
+        self.test_dataloader = test_dataloader
+        self.model = model
+        self.query_dict = self.embedding_query(self.model, self.test_dataloader)
 
-    return embedded_regi, labels_db
+    def embedding_query(self, model, test_dataloader):
+        query_dict = dict()
+        print("embedding test data (query)")
+        for inputs, labels in tqdm(test_dataloader):
+            for i, img in enumerate(inputs):
+                embedded_imgs = model(img.to(device))
+                if i==0:
+                    embedded_test = embedded_imgs.detach()
+                else:
+                    embedded_test = torch.cat((embedded_test, embedded_imgs.detach()), dim=0)
+            query_dict[labels[0]] = embedded_test
+        
+        return query_dict
+
+    def euclid_dist(self):
+        for gt_label, qs in self.query_dict.items():
+            for q in qs:
+                # label=gt_labelの個体の特徴ベクトルq
+                for db_label, db_matrix in self.db.items():
+                    # db_label: 現在参照しているDB画像群のラベル
+                    # db_matrix: 現在参照しているDB画像群の特徴ベクトルをcatしてある行列
+                    db_q_diff = db_matrix - q
+                    euclid_m = torch.mm(db_q_diff, torch.t(db_q_diff))
+                    euclid_dis = torch.diagonal(euclid_m) # <- size [68,] 68枚のdb画像から得た特徴ベクトルとqの距離
+                    similarity, min_idx = torch.min(euclid_dis, dim=0) # <- similarity: 類似度、min_idx: その類似度をもったDB画像のインデックス
+                    print(similarity)
+                    print(min_idx)
+                    exit()
+
+def test():
+    m = np.array([[1,2],[3,4]])
+    m = torch.tensor(m)
+
+    q = np.array([5,10])
+    q = torch.tensor(q)
+    m_diff = m-q
+    mm = torch.mm(m_diff, torch.t(m_diff))
+    print(torch.diagonal(mm))
 
 
 def main(args):
@@ -68,16 +112,17 @@ def main(args):
         print("loading existing database!")
         with open(os.path.join(args.register,"db.pkl"), "rb") as f:
             db = pickle.load(f)
-        with open(os.path.join(args.register,"labels.pkl"), "rb") as f:
-            labels_db = pickle.load(f)
     else:
         os.makedirs(args.register)
         print("building a new database!")
-        db, labels_db = registering_imgs(regi_dataset, args.batch_size, model)
+        db = registering_imgs(regi_dataset, args.batch_size, model)
         with open(os.path.join(args.register, "db.pkl"), "wb") as f:
             pickle.dump(db,f)
-        with open(os.path.join(args.register, "labels.pkl"), "wb") as f:
-            pickle.dump(labels_db,f)
+
+    # embedding query imgs
+    test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
+    sim_calc = CalcSimilarity(db, test_dataloader, model)
+    sim_calc.euclid_dist()
 
 
 if __name__ == "__main__":
