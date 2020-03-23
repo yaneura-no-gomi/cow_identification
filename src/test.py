@@ -4,6 +4,7 @@ import pickle
 import random
 
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -15,7 +16,7 @@ from tqdm import tqdm
 
 from dataset import TestDataset
 from make_data import Dataset_3D, Dataset_RGB
-from models import TripletNet, EmbeddingImg
+from models import EmbeddingImg, TripletNet
 from utils import ImageTransform
 
 device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
@@ -70,9 +71,11 @@ class CalcSimilarity():
         return query_dict
 
     def euclid_dist(self):
-        for gt_label, qs in self.query_dict.items():
-            for q in qs:
-                # label=gt_labelの個体の特徴ベクトルq
+        res_df = pd.DataFrame()
+        for gt_label, qs in tqdm(self.query_dict.items()):
+            for q_idx, q in enumerate(qs):
+                # labelがgt_labelの個体の特徴ベクトルq
+                calc_res = []
                 for db_label, db_matrix in self.db.items():
                     # db_label: 現在参照しているDB画像群のラベル
                     # db_matrix: 現在参照しているDB画像群の特徴ベクトルをcatしてある行列
@@ -80,20 +83,13 @@ class CalcSimilarity():
                     euclid_m = torch.mm(db_q_diff, torch.t(db_q_diff))
                     euclid_dis = torch.diagonal(euclid_m) # <- size [68,] 68枚のdb画像から得た特徴ベクトルとqの距離
                     similarity, min_idx = torch.min(euclid_dis, dim=0) # <- similarity: 類似度、min_idx: その類似度をもったDB画像のインデックス
-                    print(similarity)
-                    print(min_idx)
-                    exit()
+                    calc_res.append((gt_label, db_label, similarity.item(), q_idx, min_idx.item()))
 
-def test():
-    m = np.array([[1,2],[3,4]])
-    m = torch.tensor(m)
+                calc_res = sorted(calc_res, key=lambda x:x[2]) # similarityをkeyにしてソート
+                df = pd.DataFrame(calc_res, columns=['gt', 'db_label', 'similarity', 'idx_in_query', 'idx_in_db'])
+                res_df = pd.concat([res_df, df], axis=0).reset_index(drop=True)
 
-    q = np.array([5,10])
-    q = torch.tensor(q)
-    m_diff = m-q
-    mm = torch.mm(m_diff, torch.t(m_diff))
-    print(torch.diagonal(mm))
-
+        return res_df
 
 def main(args):
     model = EmbeddingImg()
@@ -122,7 +118,8 @@ def main(args):
     # embedding query imgs
     test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
     sim_calc = CalcSimilarity(db, test_dataloader, model)
-    sim_calc.euclid_dist()
+    res_df = sim_calc.euclid_dist()
+    res_df.to_csv("result/test.csv", index=False)
 
 
 if __name__ == "__main__":
