@@ -72,6 +72,7 @@ class CalcSimilarity():
 
     def euclid_dist(self):
         res_df = pd.DataFrame()
+        print("calculating simiralities ...")
         for gt_label, qs in tqdm(self.query_dict.items()):
             for q_idx, q in enumerate(qs):
                 # labelがgt_labelの個体の特徴ベクトルq
@@ -83,12 +84,13 @@ class CalcSimilarity():
                     euclid_m = torch.mm(db_q_diff, torch.t(db_q_diff))
                     euclid_dis = torch.diagonal(euclid_m) # <- size [68,] 68枚のdb画像から得た特徴ベクトルとqの距離
                     similarity, min_idx = torch.min(euclid_dis, dim=0) # <- similarity: 類似度、min_idx: その類似度をもったDB画像のインデックス
-                    calc_res.append((gt_label, db_label, similarity.item(), q_idx, min_idx.item()))
+                    calc_res.append((gt_label, q_idx, db_label, min_idx.item(), similarity.item()))
 
-                calc_res = sorted(calc_res, key=lambda x:x[2]) # similarityをkeyにしてソート
-                df = pd.DataFrame(calc_res, columns=['gt', 'db_label', 'similarity', 'idx_in_query', 'idx_in_db'])
-                res_df = pd.concat([res_df, df], axis=0).reset_index(drop=True)
+                calc_res = sorted(calc_res, key=lambda x:x[-1]) # similarityをkeyにしてソート
+                df = pd.DataFrame(calc_res, columns=['gt', 'idx_in_query', 'db_label', 'idx_in_db', 'similarity'])
+                res_df = pd.concat([res_df, df], axis=0)
 
+        res_df = res_df.reset_index(drop=True)
         return res_df
 
 def main(args):
@@ -119,14 +121,15 @@ def main(args):
     test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
     sim_calc = CalcSimilarity(db, test_dataloader, model)
     res_df = sim_calc.euclid_dist()
-    res_df.to_csv("result/test.csv", index=False)
+    res_df.to_csv(os.path.join("result", args.save_csv), index=False)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Training for TripletNet')
+    parser = argparse.ArgumentParser(description='Test for TripletNet')
     parser.add_argument('--batch_size', type= int, default=2, help='batch size for input')
     parser.add_argument('--register', type=str, required=True, help='dir path for building a database and save as pkl file')
     parser.add_argument('--weight', type=str, required=True, help='the path for loading pretrained weight')
+    parser.add_argument('--save_csv', type=str, required=True, help='the csv file name to save results')
 
     args = parser.parse_args()
     main(args)
